@@ -4,16 +4,10 @@ open Core
    provided radius instead of ignoring it. *)
 let transform image ~radius =
   Image.mapi image ~f:(fun ~x ~y _pixel ->
-    let x_start = if x - 1 > 0 then 0 else x - radius in
-    let x_end =
-      if x + 1 > Image.width image then Image.width image else x + radius
-    in
-    let y_start = if y - radius < 0 then 0 else y - radius in
-    let y_end =
-      if y + radius > Image.height image
-      then Image.height image
-      else y + radius
-    in
+    let x_start = Int.max (x - radius) 0 in
+    let x_end = Int.min (x + radius) (Image.width image) in
+    let y_start = Int.max (y - radius) 0 in
+    let y_end = Int.min (y + radius) (Image.height image) in
     let section = Image.slice image ~x_start ~x_end ~y_start ~y_end in
     Image.mean_pixel section)
 ;;

@@ -1,68 +1,91 @@
 open Core
 
+let dither_helper
+  ~image
+  ~x
+  ~y
+  ~error:(r_error, g_error, b_error)
+  ~percent
+  ~max
+  =
+  match Image.get image ~x ~y with
+  | exception _ -> ()
+  | _ ->
+    let curr_val = Image.get image ~x ~y in
+    let value =
+      ( Pixel.red curr_val
+        + Float.to_int (r_error *. percent *. Int.to_float max)
+      , Pixel.green curr_val
+        + Float.to_int (g_error *. percent *. Int.to_float max)
+      , Pixel.blue curr_val
+        + Float.to_int (b_error *. percent *. Int.to_float max) )
+    in
+    Image.set image ~x ~y value
+;;
+
 (* This should look familiar by now! *)
 let transform image =
-  let gray_image = Grayscale.transform image in
-  Image.foldi
-    gray_image
-    ~init:gray_image
-    ~f:(fun ~x ~y gray_image (r, _g, _b) ->
-    let max = Image.max_val gray_image in
-    let value = Int.to_float r /. Int.to_float max in
-    let error =
-      if Float.compare value 0.5 > 0
+  Image.foldi image ~init:image ~f:(fun ~x ~y image (r, g, b) ->
+    let max = Image.max_val image in
+    let r_value = Int.to_float r /. Int.to_float max in
+    let g_value = Int.to_float g /. Int.to_float max in
+    let b_value = Int.to_float b /. Int.to_float max in
+    let r_error =
+      if Float.compare r_value 0.5 > 0
       then (
-        Image.set gray_image ~x ~y (max, max, max);
-        value -. 1.0)
+        Image.set image ~x ~y (max, g, b);
+        r_value -. 1.0)
       else (
-        Image.set gray_image ~x ~y (0, 0, 0);
-        value)
+        Image.set image ~x ~y (0, g, b);
+        r_value)
     in
-    let () =
-      match Image.get gray_image ~x:(x + 1) ~y with
-      | exception _ -> ()
-      | _ ->
-        let curr_val = Image.get gray_image ~x:(x + 1) ~y in
-        let right_val =
-          Pixel.blue curr_val
-          + Float.to_int (+.(7.0 /. 16.0 *. error *. Int.to_float max))
-        in
-        Image.set gray_image ~x:(x + 1) ~y (right_val, right_val, right_val)
+    let g_error =
+      if Float.compare g_value 0.5 > 0
+      then (
+        Image.set image ~x ~y (r, max, b);
+        g_value -. 1.0)
+      else (
+        Image.set image ~x ~y (r, 0, b);
+        g_value)
     in
-    let () =
-      match Image.get gray_image ~x:(x - 1) ~y:(y + 1) with
-      | exception _ -> ()
-      | _ ->
-        let curr_val = Image.get gray_image ~x:(x - 1) ~y:(y + 1) in
-        let dl_val =
-          Pixel.blue curr_val
-          + Float.to_int (value +. (3.0 /. 16.0 *. error *. Int.to_float max))
-        in
-        Image.set gray_image ~x:(x - 1) ~y:(y + 1) (dl_val, dl_val, dl_val)
+    let b_error =
+      if Float.compare b_value 0.5 > 0
+      then (
+        Image.set image ~x ~y (r, g, max);
+        b_value -. 1.0)
+      else (
+        Image.set image ~x ~y (r, g, 0);
+        b_value)
     in
-    let () =
-      match Image.get gray_image ~x ~y:(y + 1) with
-      | exception _ -> ()
-      | _ ->
-        let curr_val = Image.get gray_image ~x ~y:(y + 1) in
-        let down_val =
-          Pixel.blue curr_val
-          + Float.to_int (value +. (5.0 /. 16.0 *. error *. Int.to_float max))
-        in
-        Image.set gray_image ~x ~y:(y + 1) (down_val, down_val, down_val)
-    in
-    let () =
-      match Image.get gray_image ~x:(x + 1) ~y:(y + 1) with
-      | exception _ -> ()
-      | _ ->
-        let curr_val = Image.get gray_image ~x:(x + 1) ~y:(y + 1) in
-        let dr_val =
-          Pixel.blue curr_val
-          + Float.to_int (value +. (1.0 /. 16.0 *. error *. Int.to_float max))
-        in
-        Image.set gray_image ~x:(x + 1) ~y:(y + 1) (dr_val, dr_val, dr_val)
-    in
-    gray_image)
+    dither_helper
+      ~image
+      ~x:(x + 1)
+      ~y
+      ~error:(r_error, g_error, b_error)
+      ~percent:(7 // 16)
+      ~max;
+    dither_helper
+      ~image
+      ~x:(x - 1)
+      ~y:(y + 1)
+      ~error:(r_error, g_error, b_error)
+      ~percent:(3 // 16)
+      ~max;
+    dither_helper
+      ~image
+      ~x
+      ~y:(y + 1)
+      ~error:(r_error, g_error, b_error)
+      ~percent:(5 // 16)
+      ~max;
+    dither_helper
+      ~image
+      ~x:(x + 1)
+      ~y:(y + 1)
+      ~error:(r_error, g_error, b_error)
+      ~percent:(1 // 16)
+      ~max;
+    image)
 ;;
 
 let command =
