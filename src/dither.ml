@@ -30,33 +30,22 @@ let transform image =
     let r_value = Int.to_float r /. Int.to_float max in
     let g_value = Int.to_float g /. Int.to_float max in
     let b_value = Int.to_float b /. Int.to_float max in
-    let r_error =
+    let r_value, r_error =
       if Float.compare r_value 0.5 > 0
-      then (
-        Image.set image ~x ~y (max, g, b);
-        r_value -. 1.0)
-      else (
-        Image.set image ~x ~y (0, g, b);
-        r_value)
+      then max, r_value -. 1.0
+      else 0, r_value
     in
-    let g_error =
+    let g_value, g_error =
       if Float.compare g_value 0.5 > 0
-      then (
-        Image.set image ~x ~y (r, max, b);
-        g_value -. 1.0)
-      else (
-        Image.set image ~x ~y (r, 0, b);
-        g_value)
+      then max, g_value -. 1.0
+      else 0, g_value
     in
-    let b_error =
+    let b_value, b_error =
       if Float.compare b_value 0.5 > 0
-      then (
-        Image.set image ~x ~y (r, g, max);
-        b_value -. 1.0)
-      else (
-        Image.set image ~x ~y (r, g, 0);
-        b_value)
+      then max, b_value -. 1.0
+      else 0, b_value
     in
+    Image.set image ~x ~y (r_value, g_value, b_value);
     dither_helper
       ~image
       ~x:(x + 1)
